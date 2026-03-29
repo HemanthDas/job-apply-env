@@ -20,7 +20,11 @@ dependencies = [
     "gradio",
     "httpx",
     "pytest",
+    "openenv-core>=0.1.1",
 ]
+
+[project.scripts]
+server = "uvicorn server.app:app --host 0.0.0.0 --port 7860"
 
 [project.urls]
 Homepage = "https://huggingface.co/spaces/HemanthDas/job-apply-env"
@@ -28,4 +32,4 @@ Repository = "https://github.com/HemanthDas/job-apply-env"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["env*"]
+include = ["env*", "server*"]
