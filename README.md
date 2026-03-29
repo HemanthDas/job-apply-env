@@ -1,3 +1,20 @@
+---
+title: JobApply-Env
+emoji: 🎯
+colorFrom: blue
+colorTo: green
+sdk: docker
+pinned: false
+license: mit
+tags:
+  - openenv
+  - job-application
+  - hiring
+  - india
+  - nlp
+  - career
+---
+
 # 🎯 JobApply-Env
 
 An OpenEnv environment simulating the Indian job application process.
