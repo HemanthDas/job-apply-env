@@ -29,11 +29,12 @@ evaluation and career coaching tools.
 
 ## 📋 Tasks
 
-| Task                 | Difficulty | Max Steps | Description                                 |
-| -------------------- | ---------- | --------- | ------------------------------------------- |
-| `resume_bullet`      | Easy       | 3         | Rewrite a weak resume bullet in STAR format |
-| `hr_screening`       | Medium     | 3         | Answer 3 classic HR interview questions     |
-| `salary_negotiation` | Hard       | 5         | Multi-turn salary negotiation dialogue      |
+| Task                 | Difficulty | Max Steps | Description                                           |
+| -------------------- | ---------- | --------- | ----------------------------------------------------- |
+| `resume_bullet`      | Easy       | 3         | Rewrite a weak resume bullet in STAR format           |
+| `hr_screening`       | Medium     | 3         | Answer 3 classic HR interview questions               |
+| `salary_negotiation` | Hard       | 5         | Multi-turn salary negotiation dialogue                |
+| `linkedin_bio`       | Medium     | 3         | Rewrite a weak LinkedIn bio into a compelling summary |
 
 ## 📥 Observation Space
 
@@ -108,12 +109,13 @@ python baseline.py
 
 ## 📊 Baseline Scores (Llama 3.1 8B via Groq)
 
-| Task                | Score    |
-| ------------------- | -------- |
-| resume_bullet       | 0.60     |
-| hr_screening        | 0.83     |
-| salary_negotiation  | 0.90     |
-| **Overall Average** | **0.78** |
+| Task                | Difficulty | Score    |
+| ------------------- | ---------- | -------- |
+| resume_bullet       | Easy       | 1.00     |
+| hr_screening        | Medium     | 0.85     |
+| salary_negotiation  | Hard       | 0.95     |
+| linkedin_bio        | Medium     | 0.86     |
+| **Overall Average** |            | **0.92** |
 
 ## 📁 Project Structure
 
