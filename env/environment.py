@@ -4,6 +4,8 @@ from env.models import (
     JobApplyObservation, JobApplyAction,
     StepResult, ResetResult, StateResult
 )
+from env.tasks.linkedin_tasks import LINKEDIN_TASKS
+from env.graders.linkedin_grader import grade_linkedin_bio
 from env.tasks.resume_tasks import RESUME_TASKS
 from env.tasks.hr_tasks import HR_TASKS
 from env.tasks.negotiation_tasks import NEGOTIATION_TASKS
@@ -14,7 +16,7 @@ from env.graders.negotiation_grader import grade_negotiation_turn
 
 class JobApplyEnv:
 
-    TASK_IDS = ["resume_bullet", "hr_screening", "salary_negotiation"]
+    TASK_IDS = ["resume_bullet", "hr_screening", "salary_negotiation", "linkedin_bio"]
 
     def __init__(self):
         self._reset_state()
@@ -27,11 +29,19 @@ class JobApplyEnv:
         self.done = False
         self.best_score = 0.0
         self.current_task = None
+        self.conversation_history = []      # tracks full dialogue
+        self.context_summary = ""           # running summary
         # HR specific
         self.current_question_index = 0
         self.hr_scores = []
         # Negotiation specific
         self.negotiation_turn = 0
+
+    def _add_to_history(self, role: str, content: str):
+        self.conversation_history.append({"role": role, "content": content})
+        # Keep summary updated
+        if role == "agent":
+            self.context_summary += f"Turn {self.step_number}: Agent said: {content[:100]}... "
 
     # ─────────────────────────────────────────
     # RESET
@@ -39,7 +49,6 @@ class JobApplyEnv:
     def reset(self, task_id: str = None) -> ResetResult:
         self._reset_state()
 
-        # Pick task
         self.task_id = task_id if task_id in self.TASK_IDS else random.choice(self.TASK_IDS)
 
         if self.task_id == "resume_bullet":
@@ -55,7 +64,7 @@ class JobApplyEnv:
 
         elif self.task_id == "hr_screening":
             self.current_task = random.choice(HR_TASKS)
-            self.max_steps = 3  # one per question
+            self.max_steps = 3
             self.current_question_index = 0
             scenario = (
                 f"You are interviewing for: {self.current_task['role']} "
@@ -71,10 +80,24 @@ class JobApplyEnv:
             scenario = self.current_task["scenario_intro"].format(
                 company=self.current_task["company"],
                 role=self.current_task["role"],
-                market_rate_lpa=self.current_task["market_rate_lpa"]
+                market_rate_lpa=self.current_task["market_rate_lpa"],
+                initial_offer_lpa=self.current_task["initial_offer_lpa"],
+                target_lpa=self.current_task["target_lpa"]
             )
-
+        elif self.task_id == "linkedin_bio":
+            self.current_task = random.choice(LINKEDIN_TASKS)
+            self.max_steps = 3
+            scenario = (
+                f"You are helping a {self.current_task['experience_years']}-year experienced "
+                f"{self.current_task['role']} at {self.current_task['current_company']}.\n\n"
+                f"Goal: {self.current_task['goal']}\n"
+                f"Skills: {', '.join(self.current_task['skills'])}\n\n"
+                f"Rewrite this weak LinkedIn bio into a compelling 3-5 sentence summary:\n\n"
+                f"❌ WEAK: \"{self.current_task['weak_bio']}\"\n\n"
+                f"Write the improved LinkedIn bio."
+            )
         self.step_number = 1
+        self._add_to_history("env", scenario)
 
         return ResetResult(
             observation=JobApplyObservation(
@@ -82,7 +105,9 @@ class JobApplyEnv:
                 scenario=scenario,
                 step_number=self.step_number,
                 feedback="",
-                max_steps=self.max_steps
+                max_steps=self.max_steps,
+                conversation_history=self.conversation_history.copy(),
+                context_summary=self.context_summary
             )
         )
 
@@ -93,13 +118,16 @@ class JobApplyEnv:
         if self.done:
             raise RuntimeError("Episode is done. Call reset() to start a new episode.")
 
+        self._add_to_history("agent", action.response)
+
         if self.task_id == "resume_bullet":
             return self._step_resume(action)
         elif self.task_id == "hr_screening":
             return self._step_hr(action)
         elif self.task_id == "salary_negotiation":
             return self._step_negotiation(action)
-
+        elif self.task_id == "linkedin_bio":
+            return self._step_linkedin(action)
     # ─────────────────────────────────────────
     # STEP — RESUME
     # ─────────────────────────────────────────
@@ -118,26 +146,65 @@ class JobApplyEnv:
         next_scenario = (
             f"Rewrite this weak resume bullet:\n\n"
             f"❌ WEAK: \"{self.current_task['weak_bullet']}\"\n\n"
-            f"Your last attempt scored {reward.score}/1.0. Try again."
-        ) if not self.done else "Episode complete."
+            f"Your last attempt scored {reward.score}/1.0. Try again.\n\n"
+            f"💡 Feedback: {reward.feedback}"
+        ) if not self.done else "Episode complete. Well done!"
 
-        obs = JobApplyObservation(
-            task_id=self.task_id,
-            scenario=next_scenario,
-            step_number=self.step_number,
-            feedback=reward.feedback,
-            max_steps=self.max_steps
-        )
-
+        self._add_to_history("env", next_scenario)
         self.step_number += 1
 
         return StepResult(
-            observation=obs,
+            observation=JobApplyObservation(
+                task_id=self.task_id,
+                scenario=next_scenario,
+                step_number=self.step_number,
+                feedback=reward.feedback,
+                max_steps=self.max_steps,
+                conversation_history=self.conversation_history.copy(),
+                context_summary=self.context_summary
+            ),
             reward=reward,
             done=self.done,
             info={"episode_id": self.episode_id, "best_score": self.best_score}
         )
+    def _step_linkedin(self, action: JobApplyAction) -> StepResult:
+        reward = grade_linkedin_bio(
+            weak_bio=self.current_task["weak_bio"],
+            rewritten_bio=action.response,
+            role=self.current_task["role"],
+            goal=self.current_task["goal"],
+            best_score_so_far=self.best_score
+        )
 
+        if reward.score > self.best_score:
+            self.best_score = reward.score
+
+        self.done = self.step_number >= self.max_steps or reward.score >= 0.95
+
+        next_scenario = (
+            f"Rewrite this weak LinkedIn bio:\n\n"
+            f"❌ WEAK: \"{self.current_task['weak_bio']}\"\n\n"
+            f"Your last attempt scored {reward.score}/1.0. Try again.\n\n"
+            f"💡 Feedback: {reward.feedback}"
+        ) if not self.done else "Episode complete. Great LinkedIn bio!"
+
+        self._add_to_history("env", next_scenario)
+        self.step_number += 1
+
+        return StepResult(
+            observation=JobApplyObservation(
+                task_id=self.task_id,
+                scenario=next_scenario,
+                step_number=self.step_number,
+                feedback=reward.feedback,
+                max_steps=self.max_steps,
+                conversation_history=self.conversation_history.copy(),
+                context_summary=self.context_summary
+            ),
+            reward=reward,
+            done=self.done,
+            info={"episode_id": self.episode_id, "best_score": self.best_score}
+        )
     # ─────────────────────────────────────────
     # STEP — HR SCREENING
     # ─────────────────────────────────────────
@@ -160,34 +227,40 @@ class JobApplyEnv:
         if not self.done:
             next_q = self.current_task["questions"][self.current_question_index]
             next_scenario = (
-                f"Good. Next question:\n\n"
+                f"Good answer. Moving to question {self.current_question_index + 1} of "
+                f"{len(self.current_task['questions'])}:\n\n"
                 f"❓ \"{next_q}\"\n\n"
-                f"Answer in 60–150 words."
+                f"Answer in 60–150 words.\n\n"
+                f"📝 Previous answers so far: {len(self.hr_scores)} question(s) answered."
             )
         else:
             avg = round(sum(self.hr_scores) / len(self.hr_scores), 2)
-            next_scenario = f"Interview complete. Average score: {avg}/1.0"
-            # Override reward with average on final step
+            next_scenario = (
+                f"Interview complete!\n\n"
+                f"📊 Your scores: {self.hr_scores}\n"
+                f"🏆 Average: {avg}/1.0"
+            )
             from env.models import JobApplyReward
             reward = JobApplyReward(
                 score=avg,
-                breakdown={"average_of_3_questions": avg},
-                feedback=f"Interview complete. Your average score was {avg}/1.0",
+                breakdown={"q1": self.hr_scores[0], "q2": self.hr_scores[1] if len(self.hr_scores) > 1 else 0, "q3": self.hr_scores[2] if len(self.hr_scores) > 2 else 0},
+                feedback=f"Interview complete. Average score: {avg}/1.0",
                 is_best_so_far=avg > self.best_score
             )
 
-        obs = JobApplyObservation(
-            task_id=self.task_id,
-            scenario=next_scenario,
-            step_number=self.step_number,
-            feedback=reward.feedback,
-            max_steps=self.max_steps
-        )
-
+        self._add_to_history("env", next_scenario)
         self.step_number += 1
 
         return StepResult(
-            observation=obs,
+            observation=JobApplyObservation(
+                task_id=self.task_id,
+                scenario=next_scenario,
+                step_number=self.step_number,
+                feedback=reward.feedback,
+                max_steps=self.max_steps,
+                conversation_history=self.conversation_history.copy(),
+                context_summary=self.context_summary
+            ),
             reward=reward,
             done=self.done,
             info={"episode_id": self.episode_id, "hr_scores": self.hr_scores}
@@ -214,7 +287,6 @@ class JobApplyEnv:
 
         self.done = is_final
 
-        # HR pushback response
         hr_reply = (
             self.current_task["hr_pushback_responses"][self.negotiation_turn]
             if self.negotiation_turn < len(self.current_task["hr_pushback_responses"])
@@ -222,25 +294,38 @@ class JobApplyEnv:
         )
 
         next_scenario = (
-            f"HR says: \"{hr_reply}\"\n\nYour response?"
-        ) if not self.done else f"Negotiation complete. Final score: {reward.score}/1.0"
-
-        obs = JobApplyObservation(
-            task_id=self.task_id,
-            scenario=next_scenario,
-            step_number=self.step_number,
-            feedback=reward.feedback,
-            max_steps=self.max_steps
+            f"HR says: \"{hr_reply}\"\n\n"
+            f"📊 Negotiation progress: Turn {self.negotiation_turn + 1}/{self.max_steps}\n"
+            f"💰 Initial offer: ₹{self.current_task['initial_offer_lpa']} LPA | "
+            f"🎯 Your target: ₹{self.current_task['target_lpa']} LPA\n\n"
+            f"Your response?"
+        ) if not self.done else (
+            f"Negotiation complete!\n"
+            f"📊 Final score: {reward.score}/1.0\n"
+            f"💬 Full negotiation: {len(self.conversation_history)} turns"
         )
 
+        self._add_to_history("env", f"HR: {hr_reply}")
         self.negotiation_turn += 1
         self.step_number += 1
 
         return StepResult(
-            observation=obs,
+            observation=JobApplyObservation(
+                task_id=self.task_id,
+                scenario=next_scenario,
+                step_number=self.step_number,
+                feedback=reward.feedback,
+                max_steps=self.max_steps,
+                conversation_history=self.conversation_history.copy(),
+                context_summary=self.context_summary
+            ),
             reward=reward,
             done=self.done,
-            info={"episode_id": self.episode_id, "negotiation_turn": self.negotiation_turn}
+            info={
+                "episode_id": self.episode_id,
+                "negotiation_turn": self.negotiation_turn,
+                "best_score": self.best_score
+            }
         )
 
     # ─────────────────────────────────────────

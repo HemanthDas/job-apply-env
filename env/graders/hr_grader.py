@@ -1,6 +1,6 @@
 import re
 from env.models import JobApplyReward
-
+from env.graders.llm_grader import llm_grade_hr
 RED_FLAG_PHRASES = [
     "i don't know", "i have no weaknesses", "i work too hard",
     "my previous company was terrible", "i just want money",
@@ -83,6 +83,25 @@ def grade_hr_answer(question: str, answer: str, best_score_so_far: float) -> Job
         if feedback_parts
         else "Excellent HR answer!"
     )
+    
+    llm_result = llm_grade_hr(question, answer)
+    if llm_result and isinstance(llm_result.get("total"), (int, float)):
+        score = round(min(float(llm_result["total"]), 1.0), 2)
+        breakdown = {
+            "relevance": llm_result.get("relevance", 0),
+            "structure": llm_result.get("structure", 0),
+            "no_red_flags": llm_result.get("no_red_flags", 0),
+            "length": llm_result.get("length", 0),
+            "grader": "llm"
+        }
+        feedback = llm_result.get("feedback", feedback)
+        is_best = score > best_score_so_far
+        return JobApplyReward(
+            score=score,
+            breakdown=breakdown,
+            feedback=feedback,
+            is_best_so_far=is_best
+        )
 
     return JobApplyReward(
         score=score,

@@ -1,5 +1,6 @@
 import re
 from env.models import JobApplyReward
+from env.graders.llm_grader import llm_grade_negotiation
 
 MARKET_DATA_PHRASES = [
     "market rate", "industry standard", "glassdoor", "linkedin salary",
@@ -87,7 +88,25 @@ def grade_negotiation_turn(
         if feedback_parts
         else "Perfect negotiation response!"
     )
-
+    llm_result = llm_grade_negotiation(
+        agent_response, initial_offer, target_lpa, is_final_turn
+    )
+    if llm_result and isinstance(llm_result.get("total"), (int, float)):
+        score = round(min(float(llm_result["total"]), 1.0), 2)
+        breakdown = {
+            "salary_outcome": llm_result.get("salary_outcome", 0),
+            "market_data": llm_result.get("market_data", 0),
+            "professional_tone": llm_result.get("professional_tone", 0),
+            "grader": "llm"
+        }
+        feedback = llm_result.get("feedback", feedback)
+        is_best = score > best_score_so_far
+        return JobApplyReward(
+            score=score,
+            breakdown=breakdown,
+            feedback=feedback,
+            is_best_so_far=is_best
+        )
     return JobApplyReward(
         score=score,
         breakdown=breakdown,

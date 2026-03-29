@@ -6,11 +6,13 @@ from typing import Optional
 # OBSERVATION — what the agent sees
 # ─────────────────────────────────────────
 class JobApplyObservation(BaseModel):
-    task_id: str                        # "resume_bullet" | "hr_screening" | "salary_negotiation"
-    scenario: str                       # the actual problem given to the agent
-    step_number: int                    # which turn we're on (starts at 1)
-    feedback: str                       # what was wrong last time (empty on first step)
-    max_steps: int                      # how many attempts allowed
+    task_id: str
+    scenario: str
+    step_number: int
+    feedback: str
+    max_steps: int
+    conversation_history: list[dict] = []  # NEW — full turn history
+    context_summary: str = ""              # NEW — running summary of episode so far
 
 
 # ─────────────────────────────────────────

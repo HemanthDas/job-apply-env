@@ -1,5 +1,6 @@
 import re
 from env.models import JobApplyReward
+from env.graders.llm_grader import llm_grade_resume
 
 STRONG_ACTION_VERBS = [
     "developed", "built", "designed", "implemented", "optimized",
@@ -13,14 +14,18 @@ IMPACT_WORDS = [
     "latency", "throughput", "accuracy", "coverage", "reliability",
     "scalability", "downtime", "errors", "bugs", "requests", "traffic"
 ]
+# Remove patterns like "✅ STRONG:", "Here is:", "Improved:", quote marks etc.
 
 def grade_resume_bullet(original: str, rewritten: str, best_score_so_far: float) -> JobApplyReward:
     score = 0.0
     breakdown = {}
     feedback_parts = []
-
+    cleaned = rewritten.strip()
+    cleaned = re.sub(r'^[\"\'\✅\⭐\🔥\*\#]+\s*', '', cleaned)
+    cleaned = re.sub(r'^(strong|improved|rewritten|here is|here\'s|result|output|bullet)[\s:\"\']+', '', cleaned, flags=re.IGNORECASE)
+    cleaned = cleaned.strip().strip('"\'')
     # Criterion 1: Starts with a strong action verb (0.25)
-    first_word = rewritten.strip().split()[0].lower().rstrip(".,") if rewritten.strip() else ""
+    first_word = cleaned.split()[0].lower().rstrip(".,") if cleaned else ""
     if first_word in STRONG_ACTION_VERBS:
         breakdown["action_verb"] = 0.25
         score += 0.25
@@ -29,7 +34,7 @@ def grade_resume_bullet(original: str, rewritten: str, best_score_so_far: float)
         feedback_parts.append(f"Start with a strong action verb like 'Developed' or 'Optimized' (got '{first_word}')")
 
     # Criterion 2: Contains a number or metric (0.35)
-    has_metric = bool(re.search(r'\d+\s*(%|x|X|ms|s|hrs?|days?|LPA|K|M|GB|TB)?', rewritten))
+    has_metric = bool(re.search(r'\d+\s*(%|x|X|ms|s|hrs?|days?|LPA|K|M|GB|TB)?', cleaned))
     if has_metric:
         breakdown["has_metric"] = 0.35
         score += 0.35
@@ -38,7 +43,7 @@ def grade_resume_bullet(original: str, rewritten: str, best_score_so_far: float)
         feedback_parts.append("Include a specific number or metric (e.g. '40%', '3x', '200ms')")
 
     # Criterion 3: Mentions business impact (0.25)
-    has_impact = any(word in rewritten.lower() for word in IMPACT_WORDS)
+    has_impact = any(word in cleaned.lower() for word in IMPACT_WORDS)
     if has_impact:
         breakdown["business_impact"] = 0.25
         score += 0.25
@@ -47,7 +52,7 @@ def grade_resume_bullet(original: str, rewritten: str, best_score_so_far: float)
         feedback_parts.append("Mention business impact (e.g. 'reduced latency', 'improved efficiency')")
 
     # Criterion 4: Concise — under 25 words (0.15)
-    word_count = len(rewritten.strip().split())
+    word_count = len(cleaned.strip().split())
     if word_count <= 25:
         breakdown["conciseness"] = 0.15
         score += 0.15
@@ -65,7 +70,24 @@ def grade_resume_bullet(original: str, rewritten: str, best_score_so_far: float)
         if feedback_parts
         else "Perfect resume bullet!"
     )
-
+    llm_result = llm_grade_resume(original, rewritten)
+    if llm_result and isinstance(llm_result.get("total"), (int, float)):
+        score = round(min(float(llm_result["total"]), 1.0), 2)
+        breakdown = {
+            "action_verb": llm_result.get("action_verb", 0),
+            "has_metric": llm_result.get("has_metric", 0),
+            "business_impact": llm_result.get("business_impact", 0),
+            "conciseness": llm_result.get("conciseness", 0),
+            "grader": "llm"
+        }
+        feedback = llm_result.get("feedback", feedback)
+        is_best = score > best_score_so_far
+        return JobApplyReward(
+            score=score,
+            breakdown=breakdown,
+            feedback=feedback,
+            is_best_so_far=is_best
+        )
     return JobApplyReward(
         score=score,
         breakdown=breakdown,
