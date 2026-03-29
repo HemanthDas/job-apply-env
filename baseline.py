@@ -77,7 +77,7 @@ def main():
     env = JobApplyEnv()
     scores = {}
 
-    for task_id in ["resume_bullet", "hr_screening", "salary_negotiation"]:
+    for task_id in ["resume_bullet", "hr_screening", "salary_negotiation", "linkedin_bio"]:
         try:
             scores[task_id] = run_task(env, task_id)
         except Exception as e:
