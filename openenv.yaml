@@ -1,0 +1,49 @@
+name: job-apply-env
+version: 0.1.0
+description: >
+  An OpenEnv environment simulating the Indian job application process.
+  An AI agent must complete three real-world tasks: rewriting weak resume
+  bullets, answering HR screening questions, and negotiating salary offers.
+author: Hemanth
+tags:
+  - openenv
+  - job-application
+  - hiring
+  - india
+  - nlp
+  - career
+
+tasks:
+  - id: resume_bullet
+    name: Resume Bullet Rewriter
+    difficulty: easy
+    max_steps: 3
+    description: >
+      Agent is given a weak resume bullet and must rewrite it using STAR format.
+      Grader checks for action verb, quantified metric, business impact, and conciseness.
+
+  - id: hr_screening
+    name: HR Screening Q&A
+    difficulty: medium
+    max_steps: 3
+    description: >
+      Agent answers 3 classic HR interview questions back to back.
+      Grader evaluates relevance, structure, tone, and appropriate length.
+
+  - id: salary_negotiation
+    name: Salary Negotiation Dialogue
+    difficulty: hard
+    max_steps: 5
+    description: >
+      Multi-turn salary negotiation. Agent must counter-offer using market data
+      and professional tone to negotiate from an initial offer to a target salary.
+
+endpoints:
+  reset: POST /reset
+  step: POST /step
+  state: GET /state
+  health: GET /health
+
+runtime:
+  port: 7860
+  framework: fastapi
