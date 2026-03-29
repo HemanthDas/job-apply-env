@@ -1,5 +1,5 @@
 import gradio as gr
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from env.environment import JobApplyEnv
 from env.models import JobApplyAction, StepResult, ResetResult, StateResult
@@ -36,6 +36,8 @@ episode_log: list[dict] = []
 class ResetRequest(BaseModel):
     task_id: Optional[str] = None
     agent_id: Optional[str] = "anonymous"
+    
+    model_config = {"extra": "allow"}
 
 
 class StepRequest(BaseModel):
@@ -60,13 +62,19 @@ def root():
 
 
 @app.post("/reset", response_model=ResetResult)
-def reset(request: ResetRequest):
+async def reset(request: Request):
     try:
-        result = env.reset(task_id=request.task_id)
+        # Handle empty body, null body, or proper JSON
+        try:
+            body = await request.json()
+        except Exception:
+            body = {}
+        
+        task_id = body.get("task_id", None) if body else None
+        result = env.reset(task_id=task_id)
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
 
 @app.post("/step", response_model=StepResult)
 def step(request: StepRequest):
