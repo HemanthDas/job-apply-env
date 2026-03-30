@@ -17,6 +17,14 @@ IMPACT_WORDS = [
 # Remove patterns like "✅ STRONG:", "Here is:", "Improved:", quote marks etc.
 
 def grade_resume_bullet(original: str, rewritten: str, best_score_so_far: float) -> JobApplyReward:
+    # Penalty for garbage/very short responses
+    if len(rewritten.strip().split()) < 5:
+        return JobApplyReward(
+            score=0.0,
+            breakdown={"penalty": "response too short"},
+            feedback="Response is too short to evaluate. Write a complete bullet point.",
+            is_best_so_far=False
+        )
     score = 0.0
     breakdown = {}
     feedback_parts = []

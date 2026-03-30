@@ -30,6 +30,14 @@ def grade_negotiation_turn(
     best_score_so_far: float,
     is_final_turn: bool
 ) -> JobApplyReward:
+    # Penalty for garbage/very short responses
+    if len(agent_response.strip().split()) < 8:
+        return JobApplyReward(
+            score=0.0,
+            breakdown={"penalty": "response too short"},
+            feedback="Response is too short for a salary negotiation. Be more detailed.",
+            is_best_so_far=False
+        )
     score = 0.0
     breakdown = {}
     feedback_parts = []

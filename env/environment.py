@@ -138,8 +138,11 @@ class JobApplyEnv:
             best_score_so_far=self.best_score
         )
 
+        delta = round(reward.score - self.best_score, 2)
         if reward.score > self.best_score:
             self.best_score = reward.score
+        reward.breakdown["delta"] = delta
+        reward.breakdown["best_so_far"] = self.best_score
 
         self.done = self.step_number >= self.max_steps or reward.score == 1.0
 
@@ -176,8 +179,11 @@ class JobApplyEnv:
             best_score_so_far=self.best_score
         )
 
+        delta = round(reward.score - self.best_score, 2)
         if reward.score > self.best_score:
             self.best_score = reward.score
+        reward.breakdown["delta"] = delta
+        reward.breakdown["best_so_far"] = self.best_score
 
         self.done = self.step_number >= self.max_steps or reward.score >= 0.95
 
@@ -218,8 +224,11 @@ class JobApplyEnv:
         )
 
         self.hr_scores.append(reward.score)
+        delta = round(reward.score - self.best_score, 2)
         if reward.score > self.best_score:
             self.best_score = reward.score
+        reward.breakdown["delta"] = delta
+        reward.breakdown["best_so_far"] = self.best_score
 
         self.current_question_index += 1
         self.done = self.current_question_index >= len(self.current_task["questions"])
@@ -282,8 +291,11 @@ class JobApplyEnv:
             is_final_turn=is_final
         )
 
+        delta = round(reward.score - self.best_score, 2)
         if reward.score > self.best_score:
             self.best_score = reward.score
+        reward.breakdown["delta"] = delta
+        reward.breakdown["best_so_far"] = self.best_score
 
         self.done = is_final
 

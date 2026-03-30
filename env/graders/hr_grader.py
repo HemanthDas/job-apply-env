@@ -14,6 +14,14 @@ STRUCTURE_MARKERS = {
 }
 
 def grade_hr_answer(question: str, answer: str, best_score_so_far: float) -> JobApplyReward:
+    # Penalty for garbage/very short responses
+    if len(answer.strip().split()) < 10:
+        return JobApplyReward(
+            score=0.0,
+            breakdown={"penalty": "response too short"},
+            feedback="Response is too short. Answer in 60-150 words.",
+            is_best_so_far=False
+        )
     score = 0.0
     breakdown = {}
     feedback_parts = []
