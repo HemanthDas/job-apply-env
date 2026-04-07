@@ -35,25 +35,19 @@ SAMPLE_RESPONSES = {
     ),
 }
 
-
 def run_task(client: httpx.Client, task_id: str) -> float:
-    print(f"\n{'='*50}")
-    print(f"TASK: {task_id.upper()}")
-    print(f"{'='*50}")
+    print(f"[START] task={task_id}", flush=True)
 
     try:
-        # Reset
         reset_resp = client.post(f"{BASE_URL}/reset", json={"task_id": task_id})
         reset_resp.raise_for_status()
         result = reset_resp.json()
-        print(f"Scenario: {result['observation']['scenario'][:100]}...")
 
         final_score = 0.0
         done = False
         step_num = 0
 
         while not done and step_num < 10:
-            # Use sample response for this task
             response_text = SAMPLE_RESPONSES.get(task_id, "I am responding to this task professionally.")
 
             step_resp = client.post(
@@ -68,14 +62,13 @@ def run_task(client: httpx.Client, task_id: str) -> float:
             final_score = score
             step_num += 1
 
-            print(f"[Step {step_num}] Score: {score} | Done: {done}")
-            print(f"Feedback: {step_result['reward']['feedback'][:80]}...")
+            print(f"[STEP] step={step_num} reward={score}", flush=True)
 
     except Exception as e:
-        print(f"❌ Task {task_id} failed: {e}")
+        print(f"[END] task={task_id} score=0.0 steps=0", flush=True)
         return 0.0
 
-    print(f"\n✅ Final Score for {task_id}: {final_score}")
+    print(f"[END] task={task_id} score={final_score} steps={step_num}", flush=True)
     return final_score
 
 
