@@ -11,7 +11,7 @@ _client = None
 def get_client():
     global _client
     if _client is None:
-        api_key = os.environ.get("GROQ_API_KEY")
+        api_key = os.environ.get("API_KEY")
         if api_key:
             _client = Groq(api_key=api_key)
     return _client

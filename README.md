@@ -105,7 +105,7 @@ docker run -p 7860:7860 job-apply-env
 
 ```bash
 pip install groq
-export GROQ_API_KEY=your_key_here
+export API_KEY=your_key_here
 python baseline.py
 ```
 

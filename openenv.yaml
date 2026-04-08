@@ -38,6 +38,14 @@ tasks:
       Multi-turn salary negotiation. Agent must counter-offer using market data
       and professional tone to negotiate from an initial offer to a target salary.
 
+  - id: linkedin_bio
+    name: LinkedIn Bio Rewriter
+    difficulty: medium
+    max_steps: 3
+    description: >
+      Agent rewrites a weak LinkedIn bio into a compelling professional summary
+      with a strong opening hook, value proposition, keywords, and a call to action.
+
 endpoints:
   reset: POST /reset
   step: POST /step
