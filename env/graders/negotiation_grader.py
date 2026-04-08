@@ -33,7 +33,7 @@ def grade_negotiation_turn(
     # Penalty for garbage/very short responses
     if len(agent_response.strip().split()) < 8:
         return JobApplyReward(
-            score=0.0,
+            score=0.01,
             breakdown={"penalty": "response too short"},
             feedback="Response is too short for a salary negotiation. Be more detailed.",
             is_best_so_far=False
@@ -86,7 +86,7 @@ def grade_negotiation_turn(
         breakdown["professional_tone"] = 0.0
         feedback_parts.append("Maintain a professional and collaborative tone.")
 
-    score = round(score, 2)
+    score = max(0.01, min(0.99, round(score, 2)))
     is_best = score > best_score_so_far
 
     feedback = (
@@ -100,7 +100,7 @@ def grade_negotiation_turn(
         agent_response, initial_offer, target_lpa, is_final_turn
     )
     if llm_result and isinstance(llm_result.get("total"), (int, float)):
-        score = round(min(float(llm_result["total"]), 1.0), 2)
+        score = max(0.01, min(0.99, round(float(llm_result["total"]), 2)))
         breakdown = {
             "salary_outcome": llm_result.get("salary_outcome", 0),
             "market_data": llm_result.get("market_data", 0),

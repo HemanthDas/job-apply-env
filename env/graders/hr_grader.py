@@ -17,7 +17,7 @@ def grade_hr_answer(question: str, answer: str, best_score_so_far: float) -> Job
     # Penalty for garbage/very short responses
     if len(answer.strip().split()) < 10:
         return JobApplyReward(
-            score=0.0,
+            score=0.01,
             breakdown={"penalty": "response too short"},
             feedback="Response is too short. Answer in 60-150 words.",
             is_best_so_far=False
@@ -81,7 +81,7 @@ def grade_hr_answer(question: str, answer: str, best_score_so_far: float) -> Job
         score += 0.05
         feedback_parts.append(f"Too long ({word_count} words). Keep it under 150 words.")
 
-    score = round(score, 2)
+    score = max(0.01, min(0.99, round(score, 2)))
     is_best = score > best_score_so_far
 
     feedback = (
@@ -91,10 +91,10 @@ def grade_hr_answer(question: str, answer: str, best_score_so_far: float) -> Job
         if feedback_parts
         else "Excellent HR answer!"
     )
-    
+
     llm_result = llm_grade_hr(question, answer)
     if llm_result and isinstance(llm_result.get("total"), (int, float)):
-        score = round(min(float(llm_result["total"]), 1.0), 2)
+        score = max(0.01, min(0.99, round(float(llm_result["total"]), 2)))
         breakdown = {
             "relevance": llm_result.get("relevance", 0),
             "structure": llm_result.get("structure", 0),

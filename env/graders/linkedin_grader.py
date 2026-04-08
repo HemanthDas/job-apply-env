@@ -65,7 +65,7 @@ def grade_linkedin_bio(
     # Penalty for garbage/very short responses
     if len(rewritten_bio.strip().split()) < 10:
         return JobApplyReward(
-            score=0.0,
+            score=0.01,
             breakdown={"penalty": "response too short"},
             feedback="Bio is too short. Write 3-5 compelling sentences.",
             is_best_so_far=False
@@ -115,12 +115,12 @@ def grade_linkedin_bio(
         breakdown["call_to_action"] = 0.0
         feedback_parts.append("End with a call to action (e.g. 'Feel free to reach out!')")
 
-    score = round(score, 2)
+    score = max(0.01, min(0.99, round(score, 2)))
 
     # LLM override
     llm_result = llm_grade_linkedin(weak_bio, rewritten_bio, role, goal)
     if llm_result and isinstance(llm_result.get("total"), (int, float)):
-        score = round(min(float(llm_result["total"]), 1.0), 2)
+        score = max(0.01, min(0.99, round(float(llm_result["total"]), 2)))
         breakdown = {
             "hook": llm_result.get("hook", 0),
             "value_proposition": llm_result.get("value_proposition", 0),

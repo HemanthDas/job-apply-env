@@ -20,7 +20,7 @@ def grade_resume_bullet(original: str, rewritten: str, best_score_so_far: float)
     # Penalty for garbage/very short responses
     if len(rewritten.strip().split()) < 5:
         return JobApplyReward(
-            score=0.0,
+            score=0.01,
             breakdown={"penalty": "response too short"},
             feedback="Response is too short to evaluate. Write a complete bullet point.",
             is_best_so_far=False
@@ -68,7 +68,7 @@ def grade_resume_bullet(original: str, rewritten: str, best_score_so_far: float)
         breakdown["conciseness"] = 0.0
         feedback_parts.append(f"Too long ({word_count} words). Keep it under 25 words.")
 
-    score = round(score, 2)
+    score = max(0.01, min(0.99, round(score, 2)))
     is_best = score > best_score_so_far
 
     feedback = (
@@ -80,7 +80,7 @@ def grade_resume_bullet(original: str, rewritten: str, best_score_so_far: float)
     )
     llm_result = llm_grade_resume(original, rewritten)
     if llm_result and isinstance(llm_result.get("total"), (int, float)):
-        score = round(min(float(llm_result["total"]), 1.0), 2)
+        score = max(0.01, min(0.99, round(float(llm_result["total"]), 2)))
         breakdown = {
             "action_verb": llm_result.get("action_verb", 0),
             "has_metric": llm_result.get("has_metric", 0),
